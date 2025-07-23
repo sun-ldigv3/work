@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孫競雷 赛博名片</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-weight: 300;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* 背景动画元素 */
+        .background-shapes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.1;
+        }
+        
+        .shape-1 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+            top: 10%;
+            left: 5%;
+            animation: float 15s infinite ease-in-out;
+        }
+        
+        .shape-2 {
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(45deg, #a1c4fd, #c2e9fb);
+            bottom: 15%;
+            right: 10%;
+            animation: float 18s infinite ease-in-out reverse;
+        }
+        
+        .shape-3 {
+            width: 180px;
+            height: 180px;
+            background: linear-gradient(45deg, #ffecd2, #fcb69f);
+            top: 50%;
+            left: 80%;
+            animation: float 12s infinite ease-in-out;
+        }
+        
+        .shape-4 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(45deg, #84fab0, #8fd3f4);
+            bottom: -50px;
+            left: 40%;
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        /* 主内容区域 */
+        .container {
+            width: 90%;
+            max-width: 800px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            position: relative;
+            z-index: 2;
+            animation: fadeIn 1.5s ease-out;
+            overflow: hidden;
+        }
+        
+        /* 打字机区域 */
+        .typewriter-container {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .name {
+            font-size: 4.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            letter-spacing: 4px;
+            animation: textGlow 3s infinite alternate;
+        }
+        
+        .title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: #eee;
+        }
+        
+        .typewriter {
+            font-size: 2.8rem;
+            height: 80px;
+            margin: 0 auto;
+            color: #ff7aa2;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 122, 162, 0.5);
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 3px;
+            margin-left: 4px;
+            background: #ff7aa2;
+            animation: blink 1s infinite;
+            height: 3rem;
+            vertical-align: middle;
+        }
+        
+        /* 信息卡片 */
+        .info-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.4s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #ff7aa2, #b967ff);
+            opacity: 0.8;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s ease;
+        }
+        
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .card h3 {
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            color: #c792ea;
+        }
+        
+        .card ul {
+            list-style: none;
+        }
+        
+        .card li {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card li::before {
+            content: "•";
+            color: #ff7aa2;
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+        
+        /* 页脚 */
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            padding: 20px 0;
+        }
+        
+        /* 动画定义 */
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-20px, 15px) rotate(3deg); }
+            50% { transform: translate(10px, -20px) rotate(-3deg); }
+            75% { transform: translate(15px, 10px) rotate(2deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        @keyframes textGlow {
+            0% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
+            100% { text-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4); }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .name { font-size: 3.2rem; }
+            .typewriter { font-size: 2.2rem; }
+            .title { font-size: 1.4rem; }
+            .container { padding: 25px; }
+        }
+        
+        @media (max-width: 480px) {
+            .name { font-size: 2.5rem; }
+            .typewriter { font-size: 1.8rem; height: 60px; }
+            .info-cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景动画元素 -->
+    <div class="background-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+        <div class="shape shape-4"></div>
+    </div>
+    
+    <div class="container">
+        <!-- 打字机区域 -->
+        <div class="typewriter-container">
+            <h1 class="name">孫競雷</h1>
+            <p class="title">创意开发者 & 二次元</p>
+            <div class="typewriter">
+                <span id="typed-text"></span>
+                <span class="cursor"></span>
+            </div>
+        </div>
+        
+        <!-- 信息卡片区域 -->
+        <div class="info-cards">
+            <div class="card">
+                <h3>专业技能</h3>
+                <ul>
+                    <li>前端开发 (HTML5/CSS3/JavaScript)</li>
+                    <li>编曲</li>
+                    <li>UI/UX 设计与优化</li>
+                    <li>绘画</li>
+                </ul>
+            </div>
+            
+            <div class="card">
+                <h3>联系我</h3>
+                <ul>
+                    <li>邮箱:sunldigv3@outlook.com</li>
+                    <li>GitHub:github.com/sun-ldigv3</li>
+                    <li>bilibili:SunldigV3</li>
+                    <li>网站:sunldigv3.dpdns.org</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>© 2025 孫競雷 | 个人名片</p>
+    </footer>
+    
+    <script>
+        // 打字机效果实现
+        const texts = [
+            "创造有温度的代码。", 
+            "没事就溜冰", 
+            "mf2020 启动！",
+            "让想法成为现实。",
+            "简约而不简单。"
+        ];
+        
+        let textIndex = 0;
+        let charIndex = 0;
+        let isDeleting = false;
+        let typingSpeed = 150;
+        
+        function type() {
+            const currentText = texts[textIndex];
+            const displayText = isDeleting 
+                ? currentText.substring(0, charIndex - 1) 
+                : currentText.substring(0, charIndex + 1);
+            
+            document.getElementById('typed-text').textContent = displayText;
+            charIndex = isDeleting ? charIndex - 1 : charIndex + 1;
+            
+            if (!isDeleting && charIndex === currentText.length) {
+                // 暂停一段时间后开始删除
+                typingSpeed = 1000;
+                isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                // 删除完成后切换到下一个文本
+                isDeleting = false;
+                textIndex = (textIndex + 1) % texts.length;
+                typingSpeed = 300;
+            } else if (isDeleting) {
+                // 删除速度
+                typingSpeed = 50;
+            } else {
+                // 打字速度
+                typingSpeed = 150;
+            }
+            
+            setTimeout(type, typingSpeed);
+        }
+        
+        // 卡片入场动画
+        function animateCards() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = 1;
+                    card.style.transform = 'translateY(0)';
+                }, 300 * index);
+            });
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始化卡片状态
+            document.querySelectorAll('.card').forEach(card => {
+                card.style.opacity = 0;
+                card.style.transform = 'translateY(30px)';
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            });
+            
+            // 启动打字机效果
+            setTimeout(type, 1000);
+            
+            // 启动卡片动画
+            setTimeout(animateCards, 1800);
+        });
+    </script>
+</body>
+</html>
