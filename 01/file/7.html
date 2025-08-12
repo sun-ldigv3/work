@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test 2</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #e3e9f1; /* Updated background color */
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .game-container {
+            width: 320px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 20px;
+            text-align: center;
+        }
+        .board {
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 5px;
+            background: #3498db;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .tile {
+            background: #ecf0f1;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tile:hover {
+            background: #d6eaf8;
+        }
+        .empty {
+            visibility: hidden;
+        }
+        .stats {
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-around;
+        }
+        .controls {
+            margin-top: 15px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .win-message {
+            color: #27ae60;
+            font-weight: bold;
+            margin-top: 10px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>数字华容道</h1>
+    <div class="game-container">
+        <div class="stats">
+            <div>步数: <span id="moves">0</span></div>
+            <div>时间: <span id="time">0</span>秒</div>
+        </div>
+        <div class="board" id="board"></div>
+        <div class="win-message" id="winMessage"></div>
+        <div class="controls">
+            <button id="newGame">新游戏</button>
+            <button id="shuffle">打乱</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const board = document.getElementById('board');
+            const movesDisplay = document.getElementById('moves');
+            const timeDisplay = document.getElementById('time');
+            const winMessage = document.getElementById('winMessage');
+            const newGameBtn = document.getElementById('newGame');
+            const shuffleBtn = document.getElementById('shuffle');
+            
+            let moves = 0;
+            let seconds = 0;
+            let timer;
+            let tiles = [];
+            let emptyPos = 15; // 空白块位置
+            
+            // 初始化游戏
+            function initGame() {
+                clearInterval(timer);
+                moves = 0;
+                seconds = 0;
+                movesDisplay.textContent = moves;
+                timeDisplay.textContent = seconds;
+                winMessage.textContent = '';
+                
+                // 创建数字块
+                tiles = Array.from({length: 15}, (_, i) => i + 1);
+                shuffleArray(tiles);
+                tiles.push(0); // 0表示空白块
+                
+                renderBoard();
+                startTimer();
+            }
+            
+            function renderBoard() {
+                board.innerHTML = '';
+                tiles.forEach((num, index) => {
+                    const tile = document.createElement('div');
+                    tile.className = num === 0 ? 'tile empty' : 'tile';
+                    tile.textContent = num === 0 ? '' : num;
+                    tile.dataset.index = index;
+                    
+                    tile.addEventListener('click', () => moveTile(index));
+                    
+                    board.appendChild(tile);
+                });
+            }
+            
+            function moveTile(index) {
+                // 检查是否可以移动
+                if (canMove(index)) {
+                    // 交换位置
+                    [tiles[index], tiles[emptyPos]] = [tiles[emptyPos], tiles[index]];
+                    emptyPos = index;
+                    
+                    // 更新显示
+                    renderBoard();
+                    
+                    // 更新步数
+                    moves++;
+                    movesDisplay.textContent = moves;
+                    
+                    // 检查是否胜利
+                    checkWin();
+                }
+            }
+            
+            function canMove(index) {
+                const row = Math.floor(index / 4);
+                const col = index % 4;
+                const emptyRow = Math.floor(emptyPos / 4);
+                const emptyCol = emptyPos % 4;
+                
+                // 检查是否相邻
+                return (Math.abs(row - emptyRow) === 1 && col === emptyCol) || 
+                       (Math.abs(col - emptyCol) === 1 && row === emptyRow);
+            }
+            
+            function checkWin() {
+                const isWin = tiles.slice(0, 15).every((num, i) => num === i + 1) && tiles[15] === 0;
+                if (isWin) {
+                    clearInterval(timer);
+                    winMessage.textContent = `恭喜获胜！用时 ${seconds} 秒，步数 ${moves} 步`;
+                }
+            }
+            
+            function startTimer() {
+                clearInterval(timer);
+                timer = setInterval(() => {
+                    seconds++;
+                    timeDisplay.textContent = seconds;
+                }, 1000);
+            }
+            
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+            
+            function shuffleBoard() {
+                do {
+                    shuffleArray(tiles);
+                    emptyPos = tiles.indexOf(0);
+                } while (!isSolvable());
+                
+                moves = 0;
+                movesDisplay.textContent = moves;
+                renderBoard();
+            }
+            
+            function isSolvable() {
+                let inversions = 0;
+                for (let i = 0; i < tiles.length - 1; i++) {
+                    if (tiles[i] === 0) continue;
+                    for (let j = i + 1; j < tiles.length; j++) {
+                        if (tiles[j] === 0) continue;
+                        if (tiles[i] > tiles[j]) inversions++;
+                    }
+                }
+                
+                const emptyRow = 4 - Math.floor(emptyPos / 4);
+                return (emptyRow % 2 === 1) ? (inversions % 2 === 0) : (inversions % 2 === 1);
+            }
+            
+            newGameBtn.addEventListener('click', initGame);
+            shuffleBtn.addEventListener('click', shuffleBoard);
+            
+            initGame();
+        });
+    </script>
+</body>
+</html>
