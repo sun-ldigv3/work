@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SunldigV3 search</title>
+<style>
+  :root{
+    --bg: #f7f9fc;
+    --card: #ffffff;
+    --text: #0b1220;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --soft: rgba(2,6,23,0.06);
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:Inter, "Helvetica Neue", Arial, system-ui;
+    background:var(--bg);
+    color:var(--text);
+    overflow: hidden;
+  }
+  body {
+    min-height: 100vh;
+  }
+  .page{
+    min-height:100vh;
+    min-height:100dvh;
+    height:100vh;
+    height:100dvh;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:22px;
+    padding:24px;
+  }
+  .clock {
+    font-size:18px;
+    color:var(--muted);
+    margin-bottom: 6px;
+    letter-spacing:1px;
+    font-family:monospace, monospace;
+    user-select: none;
+    margin-top: 6px;
+  }
+  .logo{
+    font-weight:700;
+    font-size:34px;
+    letter-spacing:0.6px;
+    color:var(--text);
+    user-select:none;
+  }
+  .search-wrap{
+    width:min(820px,92vw);
+    display:flex;
+    justify-content:center;
+  }
+  .search-box{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--card);
+    border-radius:999px;
+    padding:10px 16px;
+    box-shadow: 0 10px 30px var(--soft);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .search-box:active{ transform: translateY(1px); }
+
+  .engine-wrap{
+    position:relative;
+    display: flex;
+    align-items: center;
+  }
+  .engine {
+    border: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+    box-shadow: 0 4px 12px rgba(2,6,23,0.04);
+    transition: transform .18s cubic-bezier(.2,.9,.2,1), box-shadow .18s;
+    user-select: none;
+    display: inline-block;
+  }
+  .engine:focus { box-shadow: 0 8px 26px rgba(37,99,235,0.12); transform: translateY(-2px); }
+
+  .engine-popup {
+    position:absolute;
+    top:44px;
+    left:0;
+    min-width:180px;
+    background:var(--card);
+    border-radius:12px;
+    box-shadow:0 18px 40px rgba(2,6,23,0.08);
+    padding:8px;
+    display:none;
+    flex-direction:column;
+    gap:6px;
+    animation: popIn .18s ease;
+    z-index:20;
+    max-height: none;
+    overflow-y: hidden;
+  }
+  .engine-popup.show{ display:flex; }
+  .engine-item{
+    padding:8px 10px;
+    border-radius:10px;
+    color:var(--muted);
+    font-size:14px;
+    cursor:pointer;
+    transition: background .12s, color .12s, transform .12s;
+  }
+  .engine-item:hover{ background: rgba(37,99,235,0.06); color:var(--text); transform: translateX(4px); }
+
+  @keyframes popIn {
+    from { opacity:0; transform: translateY(-6px) scale(.99); }
+    to { opacity:1; transform: translateY(0) scale(1); }
+  }
+
+  input.q{
+    flex:1;
+    border:0;
+    outline:none;
+    font-size:16px;
+    padding:8px 6px;
+    background:transparent;
+    color:var(--text);
+  }
+  button.icon-btn{
+    width:44px; height:44px; border-radius:999px; border:1px solid rgba(11,18,32,0.06);
+    display:inline-grid; place-items:center; cursor:pointer; background:transparent;
+    transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+  }
+  button.icon-btn svg{ width:18px; height:18px; fill:var(--muted); transition: fill .12s; }
+  button.icon-btn:hover{ transform: translateY(-3px); box-shadow:0 8px 24px rgba(37,99,235,0.08); background: linear-gradient(180deg, rgba(37,99,235,0.06), transparent); }
+  button.icon-btn:active{ transform: translateY(0); }
+  button.icon-btn:hover svg{ fill:var(--accent); }
+
+  .hint{ font-size:13px; color:var(--muted); }
+
+  .dlg{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); min-width:320px;
+    background:var(--card); border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.12);
+    display:none; z-index:50;
+  }
+  .dlg.show{ display:block; animation: dlgIn .14s ease; }
+  @keyframes dlgIn { from {opacity:0; transform:translate(-50%,-48%) scale(.995)} to {opacity:1; transform:translate(-50%,-50%) scale(1);} }
+  .dlg input{ width:100%; padding:8px; border-radius:8px; border:1px solid rgba(2,6,23,0.04); background:transparent; color:var(--text); margin-bottom:8px; }
+  .dlg .row{ display:flex; gap:8px; justify-content:flex-end; }
+  .btn{ padding:8px 10px; border-radius:8px; border:0; cursor:pointer; }
+  .btn.primary{ background:var(--accent); color:#fff; }
+  .btn.ghost{ background:transparent; border:1px solid rgba(2,6,23,0.06); color:var(--text); }
+  .dlg .dlg-title { font-weight:700;margin-bottom:8px; }
+  .dlg .dlg-tip { color:var(--muted);font-size:13px;margin-bottom:8px; }
+
+  @media (max-width:540px){
+    .logo{ font-size:22px; }
+    .engine{ min-width:100px; }
+    .search-box{ padding:8px 12px; gap:8px; }
+    .clock{ font-size:14px; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="logo" id="logo">SunldigV3</div>
+    <div class="clock" id="clock"></div>
+    <div class="search-wrap">
+      <div class="search-box" role="search" aria-label="搜索">
+        <div class="engine-wrap">
+          <div id="engineSelect" class="engine" tabindex="0" aria-label="搜索引擎下拉"></div>
+          <div id="enginePopup" class="engine-popup" aria-hidden="true"></div>
+        </div>
+        <input id="q" class="q" type="text" placeholder="在 Bing 中搜索（回车或点击）" aria-label="搜索输入" />
+        <button id="searchBtn" class="icon-btn" title="搜索" aria-label="搜索">
+          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.22-1.57l.28.27v.79L20 20.49 21.49 19 16 13.5zM9.5 14A4.5 4.5 0 119.5 5a4.5 4.5 0 010 9z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  <div id="dlg" class="dlg" role="dialog" aria-modal="true">
+    <div class="dlg-title">编辑搜索引擎</div>
+    <div class="dlg-tip">目前仅支持编辑现有搜索引擎</div>
+    <input id="engName" placeholder="名称，例如：Bing" disabled />
+    <input id="engTpl" placeholder="模板，用 {q} 表示查询位置，例如：https://www.bing.com/search?q={q}" />
+    <div class="row">
+      <button id="dlgCancel" class="btn ghost">取消</button>
+      <button id="dlgSave" class="btn primary">保存</button>
+    </div>
+  </div>
+<script>
+const LS = 'sunldigv3_min_anim_v1';
+function mainEngines() {
+  // 顺序：Bing、Google、百度、Yandex、DuckDuckGo、搜狗、360搜索、Yahoo、Brave、StartPage、Ecosia、Naver、搜搜
+  return [
+    {name:'Bing', tpl:'https://www.bing.com/search?q={q}'},
+    {name:'Google', tpl:'https://www.google.com/search?q={q}'},
+    {name:'百度', tpl:'https://www.baidu.com/s?wd={q}'},
+    {name:'Yandex', tpl:'https://yandex.com/search/?text={q}'},
+    {name:'DuckDuckGo', tpl:'https://duckduckgo.com/?q={q}'},
+    {name:'搜狗', tpl:'https://www.sogou.com/web?query={q}'},
+    {name:'360搜索', tpl:'https://www.so.com/s?q={q}'},
+    {name:'Yahoo', tpl:'https://search.yahoo.com/search?p={q}'},
+    {name:'Brave', tpl:'https://search.brave.com/search?q={q}'},
+    {name:'StartPage', tpl:'https://www.startpage.com/do/dsearch?query={q}'},
+    {name:'Ecosia', tpl:'https://www.ecosia.org/search?q={q}'},
+    {name:'Naver', tpl:'https://search.naver.com/search.naver?query={q}'},
+    {name:'搜搜', tpl:'https://www.soso.com/q?w={q}'}
+  ];
+}
+function defaults(){
+  return {
+    engines: mainEngines(),
+    current: 0 // 默认选Bing
+  };
+}
+let state = (()=>{
+  try{
+    const s = localStorage.getItem(LS);
+    if (!s) return defaults();
+    let parsed = JSON.parse(s);
+    // 合并主流引擎，避免引擎丢失（如果之前存储的没有主流引擎则补充，并以mainEngines顺序为准）
+    let mEngs = mainEngines();
+    // 先过滤掉用户自定义里的同名主流引擎（避免重复）
+    parsed.engines = parsed.engines.filter(e =>
+      !mEngs.some(me => me.name === e.name)
+    );
+    // 然后拼接主流引擎
+    parsed.engines = [...mEngs, ...parsed.engines];
+    // sunldigv3重命名为Bing（如果有）
+    for(let i=0;i<parsed.engines.length;i++){
+      if(parsed.engines[i].name==='SunldigV3' || parsed.engines[i].name==='sunldigv3'){
+        parsed.engines[i].name='Bing';
+        parsed.engines[i].tpl='https://www.bing.com/search?q={q}';
+      }
+    }
+    // 移除重复的Bing和Google（只保留第一个）
+    ['Bing', 'Google'].forEach(ename=>{
+      let seen=false;
+      parsed.engines = parsed.engines.filter(e=>{
+        if(e.name!==ename) return true;
+        if(!seen){ seen=true; return true;}
+        return false;
+      });
+    });
+    // current指向Bing
+    const bingIdx = parsed.engines.findIndex(e=>e.name==='Bing');
+    if(bingIdx!==-1) parsed.current=bingIdx;
+    return parsed;
+  }catch(e){
+    return defaults();
+  }
+})();
+
+const engineSelect = document.getElementById('engineSelect');
+const enginePopup = document.getElementById('enginePopup');
+const qEl = document.getElementById('q');
+const searchBtn = document.getElementById('searchBtn');
+const logo = document.getElementById('logo');
+const dlg = document.getElementById('dlg');
+const engName = document.getElementById('engName');
+const engTpl = document.getElementById('engTpl');
+const dlgCancel = document.getElementById('dlgCancel');
+const dlgSave = document.getElementById('dlgSave');
+
+function renderEngines(){
+  engineSelect.textContent = state.engines[state.current]?.name || '';
+  // 同步搜索输入框placeholder
+  qEl.setAttribute('placeholder', '在 ' + (state.engines[state.current]?.name || '搜索引擎') + ' 中搜索（回车或点击）');
+  enginePopup.innerHTML = '';
+  state.engines.forEach((e, idx) => {
+    const item = document.createElement('div');
+    item.className = 'engine-item';
+    item.textContent = e.name;
+    item.addEventListener('click', ()=>{
+      state.current = idx;
+      save();
+      enginePopup.classList.remove('show');
+      enginePopup.setAttribute('aria-hidden','true');
+      renderEngines();
+      popupOpen = false;
+    });
+    // 右键点击弹出编辑弹窗
+    item.addEventListener('contextmenu', (ev)=>{
+      ev.preventDefault();
+      editEngine(idx, e);
+      enginePopup.classList.remove('show');
+      enginePopup.setAttribute('aria-hidden','true');
+      popupOpen = false;
+    });
+    enginePopup.appendChild(item);
+  });
+}
+
+// 编辑引擎弹窗
+function editEngine(idx, e) {
+  engName.value = e.name;
+  engTpl.value = e.tpl;
+  engName.disabled = true;
+  dlg.setAttribute('data-edit-idx', idx);
+  dlg.classList.add('show');
+}
+
+/* 自定义下拉显示/隐藏逻辑 */
+let popupOpen = false;
+engineSelect.addEventListener('click', (ev)=>{
+  popupOpen = !popupOpen;
+  if(popupOpen) {
+    enginePopup.classList.add('show');
+    enginePopup.setAttribute('aria-hidden','false');
+  } else {
+    enginePopup.classList.remove('show');
+    enginePopup.setAttribute('aria-hidden','true');
+  }
+});
+engineSelect.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' || e.key === ' ') {
+    engineSelect.click();
+  }
+});
+
+/* 点击外部关闭popup */
+document.addEventListener('click', (ev)=>{
+  if(!ev.target.closest('.engine-wrap') && !ev.target.closest('.dlg')){
+    popupOpen = false;
+    enginePopup.classList.remove('show');
+    enginePopup.setAttribute('aria-hidden','true');
+  }
+});
+
+/* 搜索操作 */
+function doSearch(){
+  const q = qEl.value.trim();
+  if(!q) return;
+  const eng = state.engines[state.current] || state.engines[0];
+  let url = eng.tpl.includes('{q}') ? eng.tpl.replace(/\{q\}/g, encodeURIComponent(q))
+            : eng.tpl + (eng.tpl.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q);
+  searchBtn.animate([
+    { transform: 'scale(1)' },
+    { transform: 'scale(0.96)' },
+    { transform: 'scale(1)' }
+  ], { duration: 160, easing: 'ease-out' });
+  window.open(url, '_blank');
+}
+searchBtn.addEventListener('click', doSearch);
+qEl.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doSearch(); });
+
+function save(){
+  try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
+}
+
+/* 编辑引擎弹窗保存 */
+dlgCancel.addEventListener('click', ()=> dlg.classList.remove('show'));
+dlgSave.addEventListener('click', ()=>{
+  const tpl = engTpl.value.trim();
+  const idx = Number(dlg.getAttribute('data-edit-idx'));
+  if(!tpl){ alert('请填写搜索模板（使用 {q} 占位）'); return; }
+  if(idx >= 0 && idx < state.engines.length){
+    state.engines[idx].tpl = tpl;
+    save();
+    renderEngines();
+    dlg.classList.remove('show');
+  }
+});
+engTpl.addEventListener('keydown', (e)=> { if(e.key === 'Enter') dlgSave.click(); });
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const box = document.querySelector('.search-box');
+  box.animate([
+    { opacity: 0, transform: 'translateY(8px) scale(.996)' },
+    { opacity: 1, transform: 'translateY(0) scale(1)' }
+  ], { duration: 320, easing: 'cubic-bezier(.2,.9,.2,1)' });
+  renderEngines();
+  updateClock();
+  setInterval(updateClock, 1000);
+});
+
+/* 时钟显示 */
+function updateClock() {
+  const clock = document.getElementById('clock');
+  const now = new Date();
+  function pad(n){ return n<10?'0'+n:n; }
+  clock.textContent =
+    now.getFullYear() + '-' +
+    pad(now.getMonth()+1) + '-' +
+    pad(now.getDate()) + ' ' +
+    pad(now.getHours()) + ':' +
+    pad(now.getMinutes()) + ':' +
+    pad(now.getSeconds());
+}
+</script>
+</body>
+</html>
