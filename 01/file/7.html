@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国际象棋游戏</title>
+    <style>
+        .rotating180 {
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+            transform: rotate(180deg) !important;
+        }
+        .rotating360 {
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+            transform: rotate(360deg) !important;
+        }
+        .rotate-anim {
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        body {
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        h1 {
+            color: #333;
+        }
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            gap: 0;
+            border: 4px solid #333;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+            transition: filter 0.5s, opacity 0.5s, transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        body.fade-in {
+            animation: fadeInBody 1s;
+        }
+        @keyframes fadeInBody {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s, transform 0.3s;
+        }
+        .white {
+            background: #f0d9b5;
+        }
+        .black {
+            background: #b58863;
+        }
+        .selected {
+            outline: 3px solid #2196f3;
+        }
+        .move {
+            background: #aee1f9 !important;
+        }
+        .move-anim {
+            animation: moveAnim 0.5s;
+        }
+        @keyframes moveAnim {
+            0% { transform: scale(1.2); background: #ffe066; }
+            100% { transform: scale(1); }
+        }
+        #info {
+            margin: 16px 0 8px 0;
+            font-size: 18px;
+            color: #444;
+        }
+        #reset {
+            margin-top: 10px;
+            padding: 6px 18px;
+            font-size: 16px;
+            border: none;
+            background: #2196f3;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #reset:hover {
+            background: #1769aa;
+        }
+        @media (max-width: 600px) {
+            #chessboard { grid-template-columns: repeat(8, 10vw); grid-template-rows: repeat(8, 10vw); }
+            .cell { width: 10vw; height: 10vw; font-size: 7vw; }
+        }
+    </style>
+</head>
+<body>
+    <h1>国际象棋游戏</h1>
+    <div style="margin-bottom:12px;">
+        <button id="aiMode" style="padding:6px 16px;margin-right:10px;">与AI对战</button>
+        <button id="pvpMode" style="padding:6px 16px;">双人对战</button>
+    </div>
+    <div id="info">白方走棋</div>
+    <div id="chessboard"></div>
+    <button id="reset">重新开始</button>
+    <script>
+        const PIECES = {
+            'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+            'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙',
+            '': ''
+        };
+        let board = [
+            ['r','n','b','q','k','b','n','r'],
+            ['p','p','p','p','p','p','p','p'],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['P','P','P','P','P','P','P','P'],
+            ['R','N','B','Q','K','B','N','R']
+        ];
+        let selected = null;
+        let turn = 'w';
+        let legalMoves = [];
+        let mode = 'ai';
+        let lastMove = null;
+        const chessboard = document.getElementById('chessboard');
+        const info = document.getElementById('info');
+        const aiBtn = document.getElementById('aiMode');
+        const pvpBtn = document.getElementById('pvpMode');
+        function isMobile() {
+            return window.innerWidth < 700 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        }
+        function render() {
+            chessboard.innerHTML = '';
+            let displayBoard = board;
+            let swapped = false;
+            let rotate = false;
+            // 双人对战黑方回合，区分端
+            if (mode === 'pvp') {
+                rotate = false;
+                chessboard.classList.remove('rotate-anim');
+                if (isMobile()) {
+                    // 手机端：白方始终在下方（不反转顺序）
+                    displayBoard = board;
+                    chessboard.style.transform = 'rotate(0deg)';
+                } else {
+                    // 电脑端：保持旋转逻辑
+                    displayBoard = board;
+                    chessboard.style.transform = turn === 'b' ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            } else {
+                chessboard.classList.remove('rotate-anim');
+                chessboard.classList.remove('rotating180');
+                chessboard.style.transform = '';
+            }
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell ' + ((i + j) % 2 === 0 ? 'white' : 'black');
+                    const piece = document.createElement('div');
+                    piece.style.display = 'flex';
+                    piece.style.alignItems = 'center';
+                    piece.style.justifyContent = 'center';
+                    piece.style.width = '100%';
+                    piece.style.height = '100%';
+                    piece.style.transition = 'transform 0.3s';
+                    if (mode === 'pvp') {
+                        if (isMobile()) {
+                            // 手机端：黑方回合时，所有棋子旋转180度
+                            if (turn === 'b') {
+                                piece.style.transform = 'rotate(180deg)';
+                            }
+                        } else if (turn === 'b') {
+                            // 电脑端：整体旋转
+                            piece.style.transform = 'rotate(180deg)';
+                        }
+                    }
+                    let realI = swapped ? 7 - i : i;
+                    let realJ = swapped ? 7 - j : j;
+                    if (rotate) {
+                        realI = 7 - i;
+                        realJ = 7 - j;
+                    }
+                    cell.dataset.row = realI;
+                    cell.dataset.col = realJ;
+                    piece.textContent = PIECES[displayBoard[i][j]];
+                    cell.appendChild(piece);
+                    if (selected && selected[0] === realI && selected[1] === realJ) {
+                        cell.classList.add('selected');
+                    }
+                    if (legalMoves.some(([r, c]) => r === realI && c === realJ)) {
+                        cell.classList.add('move');
+                    }
+                    if (lastMove && lastMove.to[0] === realI && lastMove.to[1] === realJ) {
+                        cell.classList.add('move-anim');
+                    }
+                    cell.onclick = () => onCellClick(realI, realJ);
+                    chessboard.appendChild(cell);
+                }
+            }
+        }
+        function onCellClick(i, j) {
+            if (selected) {
+                if (legalMoves.some(([r, c]) => r === i && c === j)) {
+                    movePiece(selected[0], selected[1], i, j);
+                    return;
+                }
+            }
+            if ((turn === 'w' && /[A-Z]/.test(board[i][j])) || (turn === 'b' && /[a-z]/.test(board[i][j]))) {
+                selected = [i, j];
+                legalMoves = getLegalMoves(i, j);
+            } else {
+                selected = null;
+                legalMoves = [];
+            }
+            render();
+        }
+        function movePiece(fromI, fromJ, toI, toJ) {
+            // 保存移动前的状态
+            const piece = board[fromI][fromJ];
+            const oldTurn = turn;
+            
+            // 1. 更新棋盘状态
+            board[toI][toJ] = piece;
+            board[fromI][fromJ] = '';
+            lastMove = {from: [fromI, fromJ], to: [toI, toJ]};
+            
+            // 2. 切换回合
+            turn = turn === 'w' ? 'b' : 'w';
+            info.textContent = turn === 'w' ? (mode === 'ai' ? '你的回合' : '白方走棋') : (mode === 'ai' ? 'AI回合' : '黑方走棋');
+            
+            // 3. 重置状态并强制刷新
+            selected = null;
+            legalMoves = [];
+            
+            // 4. 确保DOM完全更新后再渲染
+            setTimeout(() => {
+                render();
+                // 5. AI移动（如果需要）
+                if (mode === 'ai' && turn === 'b') {
+                    setTimeout(aiMove, 600);
+                }
+            }, 0);
+        }
+        // 简单AI：优先吃子，否则随机走
+        function aiMove() {
+            let moves = [];
+            let captureMoves = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (/[a-z]/.test(board[i][j])) {
+                        let ms = getLegalMoves(i, j);
+                        for (const [toI, toJ] of ms) {
+                            if (/[A-Z]/.test(board[toI][toJ])) {
+                                captureMoves.push({from: [i, j], to: [toI, toJ]});
+                            } else {
+                                moves.push({from: [i, j], to: [toI, toJ]});
+                            }
+                        }
+                    }
+                }
+            }
+            let move;
+            if (captureMoves.length > 0) {
+                move = captureMoves[Math.floor(Math.random() * captureMoves.length)];
+            } else if (moves.length > 0) {
+                move = moves[Math.floor(Math.random() * moves.length)];
+            } else {
+                info.textContent = 'AI无棋可走，游戏结束';
+                return;
+            }
+            movePiece(move.from[0], move.from[1], move.to[0], move.to[1]);
+        }
+        function getLegalMoves(i, j) {
+            const piece = board[i][j];
+            const moves = [];
+            const isWhite = /[A-Z]/.test(piece);
+            const directions = {
+                'N': [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]],
+                'B': [[-1,-1],[-1,1],[1,-1],[1,1]],
+                'R': [[-1,0],[1,0],[0,-1],[0,1]],
+                'Q': [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]],
+                'K': [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]
+            };
+            function canMove(x, y) {
+                if (x < 0 || x > 7 || y < 0 || y > 7) return false;
+                if (board[x][y] === '') return true;
+                if (isWhite && /[a-z]/.test(board[x][y])) return true;
+                if (!isWhite && /[A-Z]/.test(board[x][y])) return true;
+                return false;
+            }
+            switch (piece.toUpperCase()) {
+                case 'P': {
+                    const dir = isWhite ? -1 : 1;
+                    if (board[i+dir] && board[i+dir][j] === '') moves.push([i+dir, j]);
+                    if ((isWhite && i === 6) || (!isWhite && i === 1)) {
+                        if (board[i+dir] && board[i+dir][j] === '' && board[i+2*dir][j] === '') moves.push([i+2*dir, j]);
+                    }
+                    for (const dj of [-1,1]) {
+                        if (board[i+dir] && board[i+dir][j+dj] && board[i+dir][j+dj] !== '' &&
+                            ((isWhite && /[a-z]/.test(board[i+dir][j+dj])) || (!isWhite && /[A-Z]/.test(board[i+dir][j+dj])))) {
+                            moves.push([i+dir, j+dj]);
+                        }
+                    }
+                    break;
+                }
+                case 'N': {
+                    for (const [dx, dy] of directions.N) {
+                        const x = i + dx, y = j + dy;
+                        if (canMove(x, y) && (board[x][y] === '' || (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])))) {
+                            moves.push([x, y]);
+                        }
+                    }
+                    break;
+                }
+                case 'B': {
+                    for (const [dx, dy] of directions.B) {
+                        for (let k = 1; k < 8; k++) {
+                            const x = i + dx*k, y = j + dy*k;
+                            if (!canMove(x, y)) break;
+                            if (board[x][y] === '') moves.push([x, y]);
+                            else {
+                                if (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])) moves.push([x, y]);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'R': {
+                    for (const [dx, dy] of directions.R) {
+                        for (let k = 1; k < 8; k++) {
+                            const x = i + dx*k, y = j + dy*k;
+                            if (!canMove(x, y)) break;
+                            if (board[x][y] === '') moves.push([x, y]);
+                            else {
+                                if (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])) moves.push([x, y]);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'Q': {
+                    for (const [dx, dy] of directions.Q) {
+                        for (let k = 1; k < 8; k++) {
+                            const x = i + dx*k, y = j + dy*k;
+                            if (!canMove(x, y)) break;
+                            if (board[x][y] === '') moves.push([x, y]);
+                            else {
+                                if (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])) moves.push([x, y]);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'K': {
+                    for (const [dx, dy] of directions.K) {
+                        const x = i + dx, y = j + dy;
+                        if (canMove(x, y) && (board[x][y] === '' || (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])))) {
+                            moves.push([x, y]);
+                        }
+                    }
+                    break;
+                }
+            }
+            return moves.filter(([x, y]) => x >= 0 && x < 8 && y >= 0 && y < 8);
+        }
+        aiBtn.onclick = () => {
+            mode = 'ai';
+            aiBtn.style.background = '#2196f3';
+            aiBtn.style.color = '#fff';
+            pvpBtn.style.background = '';
+            pvpBtn.style.color = '';
+            resetGame();
+        };
+        pvpBtn.onclick = () => {
+            mode = 'pvp';
+            pvpBtn.style.background = '#2196f3';
+            pvpBtn.style.color = '#fff';
+            aiBtn.style.background = '';
+            aiBtn.style.color = '';
+            resetGame();
+        };
+        function resetGame() {
+            board = [
+                ['r','n','b','q','k','b','n','r'],
+                ['p','p','p','p','p','p','p','p'],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['P','P','P','P','P','P','P','P'],
+                ['R','N','B','Q','K','B','N','R']
+            ];
+            selected = null;
+            turn = 'w';
+            legalMoves = [];
+            lastMove = null;
+            info.textContent = mode === 'ai' ? '你的回合' : '白方走棋';
+            render();
+        }
+        document.getElementById('reset').onclick = resetGame;
+    aiBtn.style.background = '#2196f3';
+    aiBtn.style.color = '#fff';
+    // 页面渐显效果
+    document.body.classList.add('fade-in');
+    render();
+    </script>
+</body>
+</html>
