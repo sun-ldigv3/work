@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test</title>
+    <style>
+        body {
+             font-family: 'Arial', sans-serif;
+             background: #e3e9f1;
+             display: flex;
+             flex-direction: column;
+             align-items: center;
+             padding: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 10px;
+            margin-bottom: 20px;
+        }
+        .card {
+            width: 100px;
+            height: 100px;
+            perspective: 600px;
+            position: relative;
+        }
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            transition: transform 0.4s cubic-bezier(.4,2.3,.3,1);
+            transform-style: preserve-3d;
+        }
+        .card.flipped .card-inner,
+        .card.matched .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+            border-radius: 5px;
+            font-size: 24px;
+        }
+        .card-front {
+            background: #fff;
+            color: #333;
+            transform: rotateY(180deg); /* 正面朝向 */
+        }
+        .card-back {
+            background: #3498db;
+            color: white;
+        }
+        .card.matched .card-front,
+        .card.matched .card-back {
+            background: #2ecc71;
+            color: #fff;
+        }
+        .stats {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #c0392b;
+        }
+        .fade-in {
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+        .fade-in.visible {
+            opacity: 1;
+        }
+        .center-btn {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            margin-bottom: 0;
+        }
+        #resetBtn {
+            background: #3498db;
+            color: white;
+        }
+        #resetBtn:hover {
+            background: #217dbb;
+        }
+    </style>
+</head>
+<body>
+    <div id="fadeWrapper" class="fade-in">
+        <h1>记忆翻牌游戏</h1>
+        <div class="stats">
+            尝试次数: <span id="moves">0</span> | 
+            匹配对数: <span id="matches">0</span>/8
+        </div>
+        <div class="game-board" id="gameBoard"></div>
+        <div class="center-btn">
+            <button id="resetBtn">重新开始</button>
+        </div>
+    </div>
+    <script>
+        // 页面渐显动画
+        window.onload = function() {
+            setTimeout(function() {
+                document.getElementById('fadeWrapper').classList.add('visible');
+            }, 100);
+        };
+
+        const cards = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'E', 'E', 'F', 'F', 'G', 'G', 'H', 'H'];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let canFlip = true;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function createGameBoard() {
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            const shuffledCards = shuffleArray([...cards]);
+            
+            shuffledCards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.dataset.value = card;
+                cardElement.dataset.index = index;
+
+                // 卡牌正反面结构
+                const cardInner = document.createElement('div');
+                cardInner.classList.add('card-inner');
+                const cardFront = document.createElement('div');
+                cardFront.classList.add('card-front');
+                cardFront.textContent = card;
+                const cardBack = document.createElement('div');
+                cardBack.classList.add('card-back');
+                cardBack.textContent = '';
+
+                cardInner.appendChild(cardFront);
+                cardInner.appendChild(cardBack);
+                cardElement.appendChild(cardInner);
+
+                cardElement.addEventListener('click', flipCard);
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        function flipCard() {
+            if (!canFlip || this.classList.contains('flipped') || this.classList.contains('matched')) {
+                return;
+            }
+
+            this.classList.add('flipped');
+            flippedCards.push(this);
+
+            if (flippedCards.length === 2) {
+                canFlip = false;
+                moves++;
+                document.getElementById('moves').textContent = moves;
+                
+                if (flippedCards[0].dataset.value === flippedCards[1].dataset.value) {
+                    flippedCards.forEach(card => {
+                        card.classList.add('matched');
+                    });
+                    matchedPairs++;
+                    document.getElementById('matches').textContent = matchedPairs;
+                    flippedCards = [];
+                    canFlip = true;
+
+                    if (matchedPairs === 8) {
+                        setTimeout(() => {
+                            alert(`恭喜你赢了！总尝试次数: ${moves}`);
+                        }, 500);
+                    }
+                } else {
+                    setTimeout(() => {
+                        flippedCards.forEach(card => {
+                            card.classList.remove('flipped');
+                        });
+                        flippedCards = [];
+                        canFlip = true;
+                    }, 1000);
+                }
+            }
+        }
+
+        function resetGame() {
+            flippedCards = [];
+            matchedPairs = 0;
+            moves = 0;
+            canFlip = true;
+            document.getElementById('moves').textContent = '0';
+            document.getElementById('matches').textContent = '0';
+            createGameBoard();
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+        createGameBoard();
+    </script>
+</body>
+</html>

@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国际象棋游戏</title>
+    <style>
+        .rotating180 {
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+            transform: rotate(180deg) !important;
+        }
+        .rotating360 {
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+            transform: rotate(360deg) !important;
+        }
+        .rotate-anim {
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        body {
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        h1 {
+            color: #333;
+        }
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            gap: 0;
+            border: 4px solid #333;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+            transition: filter 0.5s, opacity 0.5s, transform 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+        }
+        body.fade-in {
+            animation: fadeInBody 1s;
+        }
+        @keyframes fadeInBody {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s, transform 0.3s;
+        }
+        .white {
+            background: #f0d9b5;
+        }
+        .black {
+            background: #b58863;
+        }
+        .selected {
+            outline: 3px solid #2196f3;
+        }
+        .move {
+            background: #aee1f9 !important;
+        }
+        .move-anim {
+            animation: moveAnim 0.5s;
+        }
+        @keyframes moveAnim {
+            0% { transform: scale(1.2); background: #ffe066; }
+            100% { transform: scale(1); }
+        }
+        #info {
+            margin: 16px 0 8px 0;
+            font-size: 18px;
+            color: #444;
+        }
+        #reset {
+            margin-top: 10px;
+            padding: 6px 18px;
+            font-size: 16px;
+            border: none;
+            background: #2196f3;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #reset:hover {
+            background: #1769aa;
+        }
+        .game-over {
+            animation: pulse 1.5s infinite;
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        @media (max-width: 600px) {
+            #chessboard { grid-template-columns: repeat(8, 10vw); grid-template-rows: repeat(8, 10vw); }
+            .cell { width: 10vw; height: 10vw; font-size: 7vw; }
+        }
+    </style>
+</head>
+<body>
+    <h1>国际象棋游戏</h1>
+    <div style="margin-bottom:12px;">
+        <button id="aiMode" style="padding:6px 16px;margin-right:10px;">与AI对战</button>
+        <button id="pvpMode" style="padding:6px 16px;">双人对战</button>
+    </div>
+    <div id="info">白方走棋</div>
+    <div id="chessboard"></div>
+    <button id="reset">重新开始</button>
+    <script>
+        const PIECES = {
+            'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+            'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙',
+            '': ''
+        };
+        
+        // 棋子价值评估表（黑方视角）
+        const PIECE_VALUES = {
+            'p': 100,   // 兵
+            'n': 320,   // 马
+            'b': 330,   // 象
+            'r': 500,   // 车
+            'q': 900,   // 后
+            'k': 10000, // 王
+            'P': -100,  // 白兵（对黑方而言是负价值）
+            'N': -320,  // 白马
+            'B': -330,  // 白象
+            'R': -500,  // 白车
+            'Q': -900,  // 白后
+            'K': -10000 // 白王
+        };
+        
+        // 位置价值表（黑方视角）
+        const POSITION_VALUES = {
+            // 兵的位置价值
+            'p': [
+                [0,  0,  0,  0,  0,  0,  0,  0],
+                [50, 50, 50, 50, 50, 50, 50, 50],
+                [10, 10, 20, 30, 30, 20, 10, 10],
+                [5,  5, 10, 25, 25, 10,  5,  5],
+                [0,  0,  0, 20, 20,  0,  0,  0],
+                [5, -5,-10,  0,  0,-10, -5,  5],
+                [5, 10, 10,-20,-20, 10, 10,  5],
+                [0,  0,  0,  0,  0,  0,  0,  0]
+            ],
+            // 马的位置价值
+            'n': [
+                [-50,-40,-30,-30,-30,-30,-40,-50],
+                [-40,-20,  0,  0,  0,  0,-20,-40],
+                [-30,  0, 10, 15, 15, 10,  0,-30],
+                [-30,  5, 15, 20, 20, 15,  5,-30],
+                [-30,  0, 15, 20, 20, 15,  0,-30],
+                [-30,  5, 10, 15, 15, 10,  5,-30],
+                [-40,-20,  0,  5,  5,  0,-20,-40],
+                [-50,-40,-30,-30,-30,-30,-40,-50]
+            ],
+            // 象的位置价值
+            'b': [
+                [-20,-10,-10,-10,-10,-10,-10,-20],
+                [-10,  0,  0,  0,  0,  0,  0,-10],
+                [-10,  0,  5, 10, 10,  5,  0,-10],
+                [-10,  5,  5, 10, 10,  5,  5,-10],
+                [-10,  0, 10, 10, 10, 10,  0,-10],
+                [-10, 10, 10, 10, 10, 10, 10,-10],
+                [-10,  5,  0,  0,  0,  0,  5,-10],
+                [-20,-10,-10,-10,-10,-10,-10,-20]
+            ],
+            // 车的位置价值
+            'r': [
+                [0,  0,  0,  0,  0,  0,  0,  0],
+                [5, 10, 10, 10, 10, 10, 10,  5],
+                [-5,  0,  0,  0,  0,  0,  0,-5],
+                [-5,  0,  0,  0,  0,  0,  0,-5],
+                [-5,  0,  0,  0,  0,  0,  0,-5],
+                [-5,  0,  0,  0,  0,  0,  0,-5],
+                [-5,  0,  0,  0,  0,  0,  0,-5],
+                [0,  0,  0,  5,  5,  0,  0,  0]
+            ],
+            // 后的位置价值
+            'q': [
+                [-20,-10,-10, -5, -5,-10,-10,-20],
+                [-10,  0,  0,  0,  0,  0,  0,-10],
+                [-10,  0,  5,  5,  5,  5,  0,-10],
+                [-5,  0,  5,  5,  5,  5,  0, -5],
+                [0,  0,  5,  5,  5,  5,  0, -5],
+                [-10,  5,  5,  5,  5,  5,  0,-10],
+                [-10,  0,  5,  0,  0,  0,  0,-10],
+                [-20,-10,-10, -5, -5,-10,-10,-20]
+            ],
+            // 王的位置价值（中局）
+            'k': [
+                [-30,-40,-40,-50,-50,-40,-40,-30],
+                [-30,-40,-40,-50,-50,-40,-40,-30],
+                [-30,-40,-40,-50,-50,-40,-40,-30],
+                [-30,-40,-40,-50,-50,-40,-40,-30],
+                [-20,-30,-30,-40,-40,-30,-30,-20],
+                [-10,-20,-20,-20,-20,-20,-20,-10],
+                [20, 20,  0,  0,  0,  0, 20, 20],
+                [20, 30, 10,  0,  0, 10, 30, 20]
+            ]
+        };
+        
+        let board = [
+            ['r','n','b','q','k','b','n','r'],
+            ['p','p','p','p','p','p','p','p'],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['P','P','P','P','P','P','P','P'],
+            ['R','N','B','Q','K','B','N','R']
+        ];
+        let selected = null;
+        let turn = 'w';
+        let legalMoves = [];
+        let mode = 'ai';
+        let lastMove = null;
+        let gameOver = false; // 游戏是否结束的标志
+        const chessboard = document.getElementById('chessboard');
+        const info = document.getElementById('info');
+        const aiBtn = document.getElementById('aiMode');
+        const pvpBtn = document.getElementById('pvpMode');
+        
+        // 检查王是否还在棋盘上
+        function checkKingExists(color) {
+            const kingSymbol = color === 'w' ? 'K' : 'k';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (board[i][j] === kingSymbol) {
+                        return true; // 王还在
+                    }
+                }
+            }
+            return false; // 王被吃掉了
+        }
+        
+        function isMobile() {
+            return window.innerWidth < 700 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        }
+        
+        function render() {
+            chessboard.innerHTML = '';
+            let displayBoard = board;
+            let swapped = false;
+            let rotate = false;
+            
+            if (mode === 'pvp') {
+                rotate = false;
+                chessboard.classList.remove('rotate-anim');
+                if (isMobile()) {
+                    displayBoard = board;
+                    chessboard.style.transform = 'rotate(0deg)';
+                } else {
+                    displayBoard = board;
+                    chessboard.style.transform = turn === 'b' ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            } else {
+                chessboard.classList.remove('rotate-anim');
+                chessboard.classList.remove('rotating180');
+                chessboard.style.transform = '';
+            }
+            
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell ' + ((i + j) % 2 === 0 ? 'white' : 'black');
+                    const piece = document.createElement('div');
+                    piece.style.display = 'flex';
+                    piece.style.alignItems = 'center';
+                    piece.style.justifyContent = 'center';
+                    piece.style.width = '100%';
+                    piece.style.height = '100%';
+                    piece.style.transition = 'transform 0.3s';
+                    
+                    if (mode === 'pvp') {
+                        if (isMobile() && turn === 'b') {
+                            piece.style.transform = 'rotate(180deg)';
+                        } else if (!isMobile() && turn === 'b') {
+                            piece.style.transform = 'rotate(180deg)';
+                        }
+                    }
+                    
+                    let realI = swapped ? 7 - i : i;
+                    let realJ = swapped ? 7 - j : j;
+                    if (rotate) {
+                        realI = 7 - i;
+                        realJ = 7 - j;
+                    }
+                    
+                    cell.dataset.row = realI;
+                    cell.dataset.col = realJ;
+                    piece.textContent = PIECES[displayBoard[i][j]];
+                    cell.appendChild(piece);
+                    
+                    // 游戏结束时不显示选中状态和可移动标记
+                    if (!gameOver) {
+                        if (selected && selected[0] === realI && selected[1] === realJ) {
+                            cell.classList.add('selected');
+                        }
+                        if (legalMoves.some(([r, c]) => r === realI && c === realJ)) {
+                            cell.classList.add('move');
+                        }
+                    }
+                    
+                    if (lastMove && lastMove.to[0] === realI && lastMove.to[1] === realJ) {
+                        cell.classList.add('move-anim');
+                    }
+                    
+                    // 游戏结束时不响应点击
+                    if (!gameOver) {
+                        cell.onclick = () => onCellClick(realI, realJ);
+                    } else {
+                        cell.style.cursor = 'default';
+                    }
+                    
+                    chessboard.appendChild(cell);
+                }
+            }
+        }
+        
+        function onCellClick(i, j) {
+            // 游戏结束则不响应点击
+            if (gameOver) return;
+            
+            if (selected) {
+                if (legalMoves.some(([r, c]) => r === i && c === j)) {
+                    movePiece(selected[0], selected[1], i, j);
+                    return;
+                }
+            }
+            
+            if ((turn === 'w' && /[A-Z]/.test(board[i][j])) || (turn === 'b' && /[a-z]/.test(board[i][j]))) {
+                selected = [i, j];
+                legalMoves = getLegalMoves(i, j);
+            } else {
+                selected = null;
+                legalMoves = [];
+            }
+            
+            render();
+        }
+        
+        function movePiece(fromI, fromJ, toI, toJ) {
+            // 保存被吃掉的棋子
+            const capturedPiece = board[toI][toJ];
+            const piece = board[fromI][fromJ];
+            const oldTurn = turn;
+            
+            // 更新棋盘状态
+            board[toI][toJ] = piece;
+            board[fromI][fromJ] = '';
+            lastMove = {from: [fromI, fromJ], to: [toI, toJ]};
+            
+            // 检查是否吃掉了对方的王（适用于所有模式）
+            if ((oldTurn === 'w' && capturedPiece === 'k') || (oldTurn === 'b' && capturedPiece === 'K')) {
+                gameOver = true;
+                // 根据游戏模式显示不同的获胜信息
+                const winner = oldTurn === 'w' ? (mode === 'ai' ? '你赢了！' : '白方获胜！') : (mode === 'ai' ? 'AI赢了！' : '黑方获胜！');
+                info.textContent = winner;
+                info.classList.add('game-over'); // 添加闪烁动画
+            } else {
+                // 没吃掉王则切换回合
+                turn = turn === 'w' ? 'b' : 'w';
+                info.textContent = turn === 'w' ? (mode === 'ai' ? '你的回合' : '白方走棋') : (mode === 'ai' ? 'AI回合' : '黑方走棋');
+            }
+            
+            // 重置状态
+            selected = null;
+            legalMoves = [];
+            
+            // 渲染更新
+            setTimeout(() => {
+                render();
+                // 如果游戏没结束且是AI回合，让AI移动
+                if (!gameOver && mode === 'ai' && turn === 'b') {
+                    setTimeout(aiMove, 800); // 稍微延长思考时间，增加真实感
+                }
+            }, 0);
+        }
+        
+        // 高级AI移动逻辑
+        function aiMove() {
+            // 游戏结束则AI不移动
+            if (gameOver) return;
+            
+            // 获取所有可能的移动并评分
+            const scoredMoves = [];
+            
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (/[a-z]/.test(board[i][j])) { // 只考虑黑方棋子
+                        const piece = board[i][j];
+                        const moves = getLegalMoves(i, j);
+                        
+                        for (const [toI, toJ] of moves) {
+                            // 模拟走棋
+                            const capturedPiece = board[toI][toJ];
+                            board[toI][toJ] = piece;
+                            board[i][j] = '';
+                            
+                            // 评估这个走法的分数
+                            let score = evaluateMove(piece, i, j, toI, toJ, capturedPiece);
+                            
+                            // 预测对手可能的应对并评估（增加搜索深度）
+                            score -= predictOpponentResponse(toI, toJ) * 0.7;
+                            
+                            // 撤销模拟走棋
+                            board[i][j] = piece;
+                            board[toI][toJ] = capturedPiece;
+                            
+                            scoredMoves.push({
+                                from: [i, j],
+                                to: [toI, toJ],
+                                score: score
+                            });
+                        }
+                    }
+                }
+            }
+            
+            if (scoredMoves.length === 0) {
+                info.textContent = 'AI无棋可走，游戏结束';
+                return;
+            }
+            
+            // 按分数排序，选择最高分的走法
+            scoredMoves.sort((a, b) => b.score - a.score);
+            
+            // 有一定概率选择次优解，增加不可预测性
+            const bestMoves = scoredMoves.slice(0, Math.max(1, Math.floor(scoredMoves.length * 0.1)));
+            const move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            
+            movePiece(move.from[0], move.from[1], move.to[0], move.to[1]);
+        }
+        
+        // 评估走法的分数
+        function evaluateMove(piece, fromI, fromJ, toI, toJ, capturedPiece) {
+            let score = 0;
+            
+            // 1. 吃子得分
+            if (capturedPiece) {
+                score += PIECE_VALUES[capturedPiece] * 1.1; // 吃子有额外奖励
+            }
+            
+            // 2. 棋子价值保护（如果移动后可能被吃）
+            const pieceValue = PIECE_VALUES[piece];
+            const opponentMovesAfter = getOpponentMovesAfter(toI, toJ);
+            if (opponentMovesAfter.some(([r, c]) => r === toI && c === toJ)) {
+                // 如果移动后会被价值更低的棋子吃掉，惩罚
+                const attackerValue = getMinAttackerValue(opponentMovesAfter, toI, toJ);
+                if (attackerValue && Math.abs(attackerValue) < pieceValue) {
+                    score -= (pieceValue - Math.abs(attackerValue)) * 0.8;
+                }
+            }
+            
+            // 3. 位置价值变化
+            if (POSITION_VALUES[piece]) {
+                const fromPosValue = POSITION_VALUES[piece][fromI][fromJ];
+                const toPosValue = POSITION_VALUES[piece][toI][toJ];
+                score += (toPosValue - fromPosValue) * 0.1;
+            }
+            
+            // 4. 中心控制奖励
+            const centerControl = getCenterControlValue(toI, toJ);
+            score += centerControl * 5;
+            
+            // 5. 王的安全性
+            if (piece === 'k') {
+                score += evaluateKingSafety(toI, toJ) * 2;
+            }
+            
+            // 6. 兵的推进奖励
+            if (piece === 'p' && toI < fromI) {
+                score += 5; // 兵每前进一步都有奖励
+            }
+            
+            return score;
+        }
+        
+        // 获取移动后可能攻击该位置的对手棋子的最小价值
+        function getMinAttackerValue(opponentMoves, i, j) {
+            let minValue = Infinity;
+            for (let x = 0; x < 8; x++) {
+                for (let y = 0; y < 8; y++) {
+                    if (/[A-Z]/.test(board[x][y]) && 
+                        opponentMoves.some(([r, c]) => r === i && c === j && 
+                        getLegalMoves(x, y).some(([mr, mc]) => mr === i && mc === j))) {
+                        const value = Math.abs(PIECE_VALUES[board[x][y]]);
+                        if (value < minValue) {
+                            minValue = value;
+                        }
+                    }
+                }
+            }
+            return minValue === Infinity ? null : minValue;
+        }
+        
+        // 获取移动后对手可能的所有走法
+        function getOpponentMovesAfter(i, j) {
+            let moves = [];
+            for (let x = 0; x < 8; x++) {
+                for (let y = 0; y < 8; y++) {
+                    if (/[A-Z]/.test(board[x][y])) { // 白方棋子（对手）
+                        moves = moves.concat(getLegalMoves(x, y));
+                    }
+                }
+            }
+            return moves;
+        }
+        
+        // 预测对手的回应并评估其影响
+        function predictOpponentResponse(aiPieceI, aiPieceJ) {
+            let maxOpponentScore = 0;
+            
+            // 检查对手所有可能的走法
+            for (let x = 0; x < 8; x++) {
+                for (let y = 0; y < 8; y++) {
+                    if (/[A-Z]/.test(board[x][y])) { // 白方棋子
+                        const piece = board[x][y];
+                        const moves = getLegalMoves(x, y);
+                        
+                        for (const [toX, toY] of moves) {
+                            // 特别关注对手是否会吃掉AI刚移动的棋子
+                            const isCapturingAiPiece = toX === aiPieceI && toY === aiPieceJ;
+                            
+                            // 模拟对手走棋
+                            const capturedPiece = board[toX][toY];
+                            board[toX][toY] = piece;
+                            board[x][y] = '';
+                            
+                            // 评估对手走法的分数（从对手角度）
+                            let score = 0;
+                            if (isCapturingAiPiece) {
+                                // 被吃的AI棋子价值
+                                score += Math.abs(PIECE_VALUES[capturedPiece]) * 1.2;
+                            } else if (capturedPiece) {
+                                // 对手吃其他棋子的价值
+                                score += Math.abs(PIECE_VALUES[capturedPiece]) * 1.1;
+                            }
+                            
+                            // 位置价值
+                            if (POSITION_VALUES[piece.toLowerCase()]) {
+                                const fromPosValue = POSITION_VALUES[piece.toLowerCase()][7 - x][7 - y]; // 白方视角反转
+                                const toPosValue = POSITION_VALUES[piece.toLowerCase()][7 - toX][7 - toY];
+                                score += (toPosValue - fromPosValue) * 0.1;
+                            }
+                            
+                            if (score > maxOpponentScore) {
+                                maxOpponentScore = score;
+                            }
+                            
+                            // 撤销模拟
+                            board[x][y] = piece;
+                            board[toX][toY] = capturedPiece;
+                        }
+                    }
+                }
+            }
+            
+            return maxOpponentScore;
+        }
+        
+        // 评估中心控制价值
+        function getCenterControlValue(i, j) {
+            // 中心区域（d4, d5, e4, e5）价值最高
+            const centerSquares = [[3,3], [3,4], [4,3], [4,4]];
+            const nearCenterSquares = [[2,2], [2,3], [2,4], [2,5],
+                                      [3,2],          [3,5],
+                                      [4,2],          [4,5],
+                                      [5,2], [5,3], [5,4], [5,5]];
+                                      
+            if (centerSquares.some(([x, y]) => x === i && y === j)) {
+                return 3;
+            } else if (nearCenterSquares.some(([x, y]) => x === i && y === j)) {
+                return 1;
+            }
+            return 0;
+        }
+        
+        // 评估王的安全性
+        function evaluateKingSafety(kingI, kingJ) {
+            let safety = 0;
+            
+            // 检查周围是否有己方棋子保护
+            for (let di = -1; di <= 1; di++) {
+                for (let dj = -1; dj <= 1; dj++) {
+                    if (di === 0 && dj === 0) continue;
+                    const x = kingI + di;
+                    const y = kingJ + dj;
+                    if (x >= 0 && x < 8 && y >= 0 && y < 8 && /[a-z]/.test(board[x][y])) {
+                        safety += 2; // 有己方棋子在周围保护
+                    }
+                }
+            }
+            
+            // 检查是否暴露在边缘
+            if (kingI === 0 || kingI === 7 || kingJ === 0 || kingJ === 7) {
+                safety -= 3; // 王在边缘更危险
+            }
+            
+            return safety;
+        }
+        
+        function getLegalMoves(i, j) {
+            const piece = board[i][j];
+            const moves = [];
+            const isWhite = /[A-Z]/.test(piece);
+            
+            const directions = {
+                'N': [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]],
+                'B': [[-1,-1],[-1,1],[1,-1],[1,1]],
+                'R': [[-1,0],[1,0],[0,-1],[0,1]],
+                'Q': [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]],
+                'K': [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]
+            };
+            
+            function canMove(x, y) {
+                if (x < 0 || x > 7 || y < 0 || y > 7) return false;
+                if (board[x][y] === '') return true;
+                if (isWhite && /[a-z]/.test(board[x][y])) return true;
+                if (!isWhite && /[A-Z]/.test(board[x][y])) return true;
+                return false;
+            }
+            
+            switch (piece.toUpperCase()) {
+                case 'P': {
+                    const dir = isWhite ? -1 : 1;
+                    if (board[i+dir] && board[i+dir][j] === '') moves.push([i+dir, j]);
+                    if ((isWhite && i === 6) || (!isWhite && i === 1)) {
+                        if (board[i+dir] && board[i+dir][j] === '' && board[i+2*dir][j] === '') moves.push([i+2*dir, j]);
+                    }
+                    for (const dj of [-1,1]) {
+                        if (board[i+dir] && board[i+dir][j+dj] && board[i+dir][j+dj] !== '' &&
+                            ((isWhite && /[a-z]/.test(board[i+dir][j+dj])) || (!isWhite && /[A-Z]/.test(board[i+dir][j+dj])))) {
+                            moves.push([i+dir, j+dj]);
+                        }
+                    }
+                    break;
+                }
+                case 'N': {
+                    for (const [dx, dy] of directions.N) {
+                        const x = i + dx, y = j + dy;
+                        if (canMove(x, y) && (board[x][y] === '' || (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])))) {
+                            moves.push([x, y]);
+                        }
+                    }
+                    break;
+                }
+                case 'B': {
+                    for (const [dx, dy] of directions.B) {
+                        for (let k = 1; k < 8; k++) {
+                            const x = i + dx*k, y = j + dy*k;
+                            if (!canMove(x, y)) break;
+                            if (board[x][y] === '') moves.push([x, y]);
+                            else {
+                                if (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])) moves.push([x, y]);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'R': {
+                    for (const [dx, dy] of directions.R) {
+                        for (let k = 1; k < 8; k++) {
+                            const x = i + dx*k, y = j + dy*k;
+                            if (!canMove(x, y)) break;
+                            if (board[x][y] === '') moves.push([x, y]);
+                            else {
+                                if (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])) moves.push([x, y]);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'Q': {
+                    for (const [dx, dy] of directions.Q) {
+                        for (let k = 1; k < 8; k++) {
+                            const x = i + dx*k, y = j + dy*k;
+                            if (!canMove(x, y)) break;
+                            if (board[x][y] === '') moves.push([x, y]);
+                            else {
+                                if (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])) moves.push([x, y]);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'K': {
+                    for (const [dx, dy] of directions.K) {
+                        const x = i + dx, y = j + dy;
+                        if (canMove(x, y) && (board[x][y] === '' || (isWhite ? /[a-z]/.test(board[x][y]) : /[A-Z]/.test(board[x][y])))) {
+                            moves.push([x, y]);
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            return moves.filter(([x, y]) => x >= 0 && x < 8 && y >= 0 && y < 8);
+        }
+        
+        aiBtn.onclick = () => {
+            mode = 'ai';
+            aiBtn.style.background = '#2196f3';
+            aiBtn.style.color = '#fff';
+            pvpBtn.style.background = '';
+            pvpBtn.style.color = '';
+            resetGame();
+        };
+        
+        pvpBtn.onclick = () => {
+            mode = 'pvp';
+            pvpBtn.style.background = '#2196f3';
+            pvpBtn.style.color = '#fff';
+            aiBtn.style.background = '';
+            aiBtn.style.color = '';
+            resetGame();
+        };
+        
+        function resetGame() {
+            board = [
+                ['r','n','b','q','k','b','n','r'],
+                ['p','p','p','p','p','p','p','p'],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['P','P','P','P','P','P','P','P'],
+                ['R','N','B','Q','K','B','N','R']
+            ];
+            selected = null;
+            turn = 'w';
+            legalMoves = [];
+            lastMove = null;
+            gameOver = false; // 重置游戏状态
+            info.textContent = mode === 'ai' ? '你的回合' : '白方走棋';
+            info.classList.remove('game-over'); // 移除游戏结束样式
+            render();
+        }
+        
+        document.getElementById('reset').onclick = resetGame;
+        
+        // 初始化设置
+        aiBtn.style.background = '#2196f3';
+        aiBtn.style.color = '#fff';
+        document.body.classList.add('fade-in');
+        render();
+    </script>
+</body>
+</html>
+    
