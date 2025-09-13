@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="cn">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SunldigV3 search</title>
+<style>
+  :root{
+    --bg: #f7f9fc;
+    --card: #ffffff;
+    --text: #0b1220;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --soft: rgba(2,6,23,0.06);
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:Inter, "Helvetica Neue", Arial, system-ui;
+    background:var(--bg);
+    color:var(--text);
+  }
+  body {
+    min-height: 100vh;
+    transition: overflow .15s;
+    scroll-behavior: smooth;
+    min-height: 120vh; /* 只允许稍微下滑，给一点空间 */
+  }
+  .page{
+    min-height:100vh;
+    min-height:100dvh;
+    height: auto !important;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:22px;
+    padding:24px;
+    animation: fadeInPage 0.82s cubic-bezier(.2,.9,.2,1);
+    transition: transform 0.5s cubic-bezier(.42,1.2,.51,1.01);
+  }
+  @keyframes fadeInPage {
+    from { opacity:0; transform:scale(0.98);}
+    to { opacity:1; transform:scale(1);}
+  }
+  .clock {
+    font-size:18px;
+    color:var(--muted);
+    margin-bottom: 6px;
+    letter-spacing:1px;
+    font-family:monospace, monospace;
+    user-select: none;
+    margin-top: 6px;
+  }
+  .logo{
+    font-weight:700;
+    font-size:34px;
+    letter-spacing:0.6px;
+    color:var(--text);
+    user-select:none;
+    animation: logoBounceIn 0.7s cubic-bezier(.42,1.7,.38,.93);
+  }
+  @keyframes logoBounceIn {
+    0% { opacity:0; transform:scale(0.85) translateY(-25px);}
+    60% { opacity:.92; transform:scale(1.08) translateY(2px);}
+    90% { opacity:1; transform:scale(0.96) translateY(-5px);}
+    100% { opacity:1; transform:scale(1) translateY(0);}
+  }
+  .search-wrap{
+    width:min(820px,92vw);
+    display:flex;
+    justify-content:center;
+  }
+  .search-box{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--card);
+    border-radius:999px;
+    padding:10px 16px;
+    box-shadow: 0 10px 30px var(--soft);
+    animation: searchBoxDrop 0.58s cubic-bezier(.21,1.2,.42,1.0);
+    transition: transform .16s cubic-bezier(.22,1.2,.51,1.01), box-shadow .12s ease;
+  }
+  @keyframes searchBoxDrop {
+    0% { opacity:0; transform:translateY(-30px) scale(.96);}
+    72% { opacity:1; transform:translateY(8px) scale(1.03);}
+    100% { opacity:1; transform:translateY(0) scale(1);}
+  }
+  .search-box:active{ transform: scale(.985) translateY(1px); box-shadow:0 4px 16px var(--soft);}
+  .engine-wrap{
+    position:relative;
+    display: flex;
+    align-items: center;
+  }
+  .engine {
+    border: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+    box-shadow: 0 4px 12px rgba(2,6,23,0.04);
+    transition: transform .18s cubic-bezier(.2,.9,.2,1), box-shadow .18s, background .15s;
+    user-select: none;
+    display: inline-block;
+    animation: fadeInEng 0.58s .12s cubic-bezier(.22,1.2,.51,1.01) backwards;
+  }
+  @keyframes fadeInEng {
+    from {opacity:0; transform:translateY(12px) scale(.98);}
+    to {opacity:1; transform:translateY(0) scale(1);}
+  }
+  .engine:focus { box-shadow: 0 8px 26px rgba(37,99,235,0.12); transform: translateY(-2px);}
+  .engine-popup {
+    position:absolute;
+    top:44px;
+    left:0;
+    min-width:180px;
+    max-height: 320px;
+    background:var(--card);
+    border-radius:12px;
+    box-shadow:0 18px 40px rgba(2,6,23,0.08);
+    padding:8px;
+    display:none;
+    flex-direction:column;
+    gap:6px;
+    animation: popIn .18s ease;
+    z-index:20;
+    overflow-y:auto;
+    overscroll-behavior: contain;
+    /* 禁止水平滑动 */
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+  .engine-popup.show{
+    display:flex;
+    animation: popupBounceIn .22s cubic-bezier(.22,1.2,.51,1.01);
+    pointer-events: auto;
+  }
+  @keyframes popupBounceIn {
+    0% { opacity:0; transform:translateY(-12px) scale(.96);}
+    60% { opacity:.9; transform:translateY(7px) scale(1.04);}
+    100% { opacity:1; transform:translateY(0) scale(1);}
+  }
+  .engine-popup:not(.show) {
+    pointer-events: none;
+    overflow-y: hidden;
+    max-height: 0 !important;
+  }
+  .engine-item{
+    padding:8px 10px;
+    border-radius:10px;
+    color:var(--muted);
+    font-size:14px;
+    cursor:pointer;
+    transition: background .12s, color .12s, transform .14s cubic-bezier(.24,2,.54,1.1);
+    will-change: transform;
+    animation: fadeInItem .21s cubic-bezier(.22,1.2,.51,1.01);
+  }
+  @keyframes fadeInItem {
+    from {opacity:0; transform: translateX(-12px) scale(.98);}
+    to {opacity:1; transform: translateX(0) scale(1);}
+  }
+  .engine-item:hover{
+    background: rgba(37,99,235,0.09);
+    color:var(--accent);
+    transform: translateX(10px) scale(1.04) rotate(-2deg);
+    box-shadow:0 2px 10px rgba(37,99,235,0.10);
+  }
+  input.q{
+    flex:1;
+    border:0;
+    outline:none;
+    font-size:16px;
+    padding:8px 6px;
+    background:transparent;
+    color:var(--text);
+    animation: fadeInInput .38s .20s cubic-bezier(.22,1.2,.51,1.01) backwards;
+  }
+  @keyframes fadeInInput {
+    from {opacity:0; transform:translateY(6px);}
+    to {opacity:1; transform:translateY(0);}
+  }
+  button.icon-btn{
+    width:44px; height:44px; border-radius:999px; border:1px solid rgba(11,18,32,0.06);
+    display:inline-grid; place-items:center; cursor:pointer; background:transparent;
+    transition: transform .13s cubic-bezier(.65,1.5,.71,1.13), background .13s, box-shadow .13s;
+    animation: fadeInBtn .32s .25s cubic-bezier(.22,1.2,.51,1.01) backwards;
+  }
+  @keyframes fadeInBtn {
+    from { opacity: 0; transform: scale(.92);}
+    to { opacity: 1; transform: scale(1);}
+  }
+  button.icon-btn svg{ width:18px; height:18px; fill:var(--muted); transition: fill .12s; }
+  button.icon-btn:hover{
+    transform: scale(1.10) rotate(7deg);
+    box-shadow:0 8px 24px rgba(37,99,235,0.14);
+    background: linear-gradient(180deg, rgba(37,99,235,0.10), transparent);
+  }
+  button.icon-btn:active{ transform: scale(.98) rotate(-2deg); }
+  button.icon-btn:hover svg{ fill:var(--accent); }
+  .hint{ font-size:13px; color:var(--muted); }
+  .dlg{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); min-width:320px;
+    background:var(--card); border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.12);
+    display:none; z-index:50;
+  }
+  .dlg.show{ display:block; animation: dlgIn .14s ease; }
+  @keyframes dlgIn { from {opacity:0; transform:translate(-50%,-48%) scale(.995)} to {opacity:1; transform:translate(-50%,-50%) scale(1);} }
+  .dlg input{ width:100%; padding:8px; border-radius:8px; border:1px solid rgba(2,6,23,0.04); background:transparent; color:var(--text); margin-bottom:8px; }
+  .dlg .row{ display:flex; gap:8px; justify-content:flex-end; }
+  .btn{ padding:8px 10px; border-radius:8px; border:0; cursor:pointer; }
+  .btn.primary{ background:var(--accent); color:#fff; }
+  .btn.ghost{ background:transparent; border:1px solid rgba(2,6,23,0.06); color:var(--text); }
+  .dlg .dlg-title { font-weight:700;margin-bottom:8px; }
+  .dlg .dlg-tip { color:var(--muted);font-size:13px;margin-bottom:8px; }
+  @media (max-width:540px){
+    .logo{ font-size:22px; }
+    .engine{ min-width:100px; }
+    .search-box{ padding:8px 12px; gap:8px; }
+    .clock{ font-size:14px; }
+    .engine-popup { max-height: 220px; }
+    body { min-height: 110vh; }
+  }
+</style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div class="logo" id="logo">SunldigV3</div>
+    <div class="clock" id="clock"></div>
+    <div class="search-wrap">
+      <div class="search-box" role="search" aria-label="search">
+        <div class="engine-wrap">
+          <div id="engineSelect" class="engine" tabindex="0" aria-label="搜索引擎下拉"></div>
+          <div id="enginePopup" class="engine-popup" aria-hidden="true"></div>
+        </div>
+        <input id="q" class="q" type="text" placeholder="在 Bing 中搜索（回车或点击）" aria-label="搜索输入" />
+        <button id="searchBtn" class="icon-btn" title="search" aria-label="search">
+          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.22-1.57l.28.27v.79L20 20.49 21.49 19 16 13.5zM9.5 14A4.5 4.5 0 119.5 5a4.5 4.5 0 010 9z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  <div id="dlg" class="dlg" role="dialog" aria-modal="true">
+    <div class="dlg-title">Edit search engine</div>
+    <div class="dlg-tip">Currently only supports editing existing search engines</div>
+    <input id="engName" placeholder="Name, e.g.: Bing" disabled />
+    <input id="engTpl" placeholder="Template, use {q} to indicate query position, e.g.: https://www.bing.com/search?q={q}" />
+    <div class="row">
+      <button id="dlgCancel" class="btn ghost">Cancel</button>
+      <button id="dlgSave" class="btn primary">Save</button>
+    </div>
+  </div>
+<script>
+const LS = 'sunldigv3_min_anim_v1';
+function mainEngines() {
+  return [
+    {name:'Bing', tpl:'https://www.bing.com/search?q={q}'},
+    {name:'Google', tpl:'https://www.google.com/search?q={q}'},
+    {name:'百度', tpl:'https://www.baidu.com/s?wd={q}'},
+    {name:'Yandex', tpl:'https://yandex.com/search/?text={q}'},
+    {name:'DuckDuckGo', tpl:'https://duckduckgo.com/?q={q}'},
+    {name:'搜狗', tpl:'https://www.sogou.com/web?query={q}'},
+    {name:'360搜索', tpl:'https://www.so.com/s?q={q}'},
+    {name:'Yahoo', tpl:'https://search.yahoo.com/search?p={q}'},
+    {name:'Brave', tpl:'https://search.brave.com/search?q={q}'},
+    {name:'StartPage', tpl:'https://www.startpage.com/do/dsearch?query={q}'},
+    {name:'Ecosia', tpl:'https://www.ecosia.org/search?q={q}'},
+    {name:'Naver', tpl:'https://search.naver.com/search.naver?query={q}'}
+  ];
+}
+function defaults(){
+  return {
+    engines: mainEngines(),
+    current: 0
+  };
+}
+let state = (()=>{
+  try{
+    const s = localStorage.getItem(LS);
+    if (!s) return defaults();
+    let parsed = JSON.parse(s);
+    let mEngs = mainEngines();
+    parsed.engines = parsed.engines.filter(e =>
+      !mEngs.some(me => me.name === e.name)
+    );
+    parsed.engines = [...mEngs, ...parsed.engines];
+    for(let i=0;i<parsed.engines.length;i++){
+      if(parsed.engines[i].name==='SunldigV3' || parsed.engines[i].name==='sunldigv3'){
+        parsed.engines[i].name='Bing';
+        parsed.engines[i].tpl='https://www.bing.com/search?q={q}';
+      }
+    }
+    ['Bing', 'Google'].forEach(ename=>{
+      let seen=false;
+      parsed.engines = parsed.engines.filter(e=>{
+        if(e.name!==ename) return true;
+        if(!seen){ seen=true; return true;}
+        return false;
+      });
+    });
+    const bingIdx = parsed.engines.findIndex(e=>e.name==='Bing');
+    if(bingIdx!==-1) parsed.current=bingIdx;
+    parsed.engines = parsed.engines.filter(e=>e.name!=='搜搜');
+    return parsed;
+  }catch(e){
+    return defaults();
+  }
+})();
+
+const engineSelect = document.getElementById('engineSelect');
+const enginePopup = document.getElementById('enginePopup');
+const qEl = document.getElementById('q');
+const searchBtn = document.getElementById('searchBtn');
+const logo = document.getElementById('logo');
+const dlg = document.getElementById('dlg');
+const engName = document.getElementById('engName');
+const engTpl = document.getElementById('engTpl');
+const dlgCancel = document.getElementById('dlgCancel');
+const dlgSave = document.getElementById('dlgSave');
+const page = document.getElementById('page');
+
+function setBodyScroll(allow) {
+  if(allow) {
+    document.body.style.overflow = 'auto';
+    page.style.height = 'auto';
+    // 不自动滚动
+  } else {
+    document.body.style.overflow = 'hidden';
+    window.scrollTo({top:0, left:0, behavior:'smooth'});
+    page.style.transition = 'transform 0.5s cubic-bezier(.42,1.2,.51,1.01)';
+    page.style.transform = 'translateY(0)';
+    setTimeout(()=>{
+      page.style.height = '100vh';
+      page.style.transform = '';
+      page.style.transition = '';
+    }, 520);
+  }
+}
+
+function renderEngines(){
+  engineSelect.textContent = state.engines[state.current]?.name || '';
+  qEl.setAttribute('placeholder', 'in ' + (state.engines[state.current]?.name || 'search engine') + ' Search (press enter or click)');
+  enginePopup.innerHTML = '';
+  state.engines.forEach((e, idx) => {
+    const item = document.createElement('div');
+    item.className = 'engine-item';
+    item.textContent = e.name;
+    item.style.animationDelay = (0.04 * idx + 0.05) + 's';
+    item.addEventListener('click', ()=>{
+      state.current = idx;
+      save();
+      enginePopup.classList.remove('show');
+      enginePopup.setAttribute('aria-hidden','true');
+      renderEngines();
+      popupOpen = false;
+      setBodyScroll(false);
+    });
+    item.addEventListener('contextmenu', (ev)=>{
+      ev.preventDefault();
+      editEngine(idx, e);
+      enginePopup.classList.remove('show');
+      enginePopup.setAttribute('aria-hidden','true');
+      popupOpen = false;
+      setBodyScroll(false);
+    });
+    enginePopup.appendChild(item);
+  });
+}
+
+function editEngine(idx, e) {
+  engName.value = e.name;
+  engTpl.value = e.tpl;
+  engName.disabled = true;
+  dlg.setAttribute('data-edit-idx', idx);
+  dlg.classList.add('show');
+}
+
+let popupOpen = false;
+engineSelect.addEventListener('click', (ev)=>{
+  popupOpen = !popupOpen;
+  if(popupOpen) {
+    enginePopup.classList.add('show');
+    enginePopup.setAttribute('aria-hidden','false');
+    setBodyScroll(true);
+    renderEngines();
+  } else {
+    enginePopup.classList.remove('show');
+    enginePopup.setAttribute('aria-hidden','true');
+    setBodyScroll(false);
+  }
+});
+engineSelect.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' || e.key === ' ') {
+    engineSelect.click();
+  }
+});
+
+document.addEventListener('click', (ev)=>{
+  if(!ev.target.closest('.engine-wrap') && !ev.target.closest('.dlg')){
+    popupOpen = false;
+    enginePopup.classList.remove('show');
+    enginePopup.setAttribute('aria-hidden','true');
+    setBodyScroll(false);
+  }
+});
+
+function doSearch(){
+  const q = qEl.value.trim();
+  if(!q) return;
+  const eng = state.engines[state.current] || state.engines[0];
+  let url = eng.tpl.includes('{q}') ? eng.tpl.replace(/\{q\}/g, encodeURIComponent(q))
+            : eng.tpl + (eng.tpl.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(q);
+  searchBtn.animate([
+    { transform: 'scale(1) rotate(0)' },
+    { transform: 'scale(.92) rotate(-8deg)' },
+    { transform: 'scale(1.13) rotate(4deg)' },
+    { transform: 'scale(1) rotate(0)' }
+  ], { duration: 330, easing: 'cubic-bezier(.44,1.62,.42,1.0)' });
+  window.open(url, '_blank');
+}
+searchBtn.addEventListener('click', doSearch);
+qEl.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doSearch(); });
+
+function save(){
+  try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
+}
+
+dlgCancel.addEventListener('click', ()=> dlg.classList.remove('show'));
+dlgSave.addEventListener('click', ()=>{
+  const tpl = engTpl.value.trim();
+  const idx = Number(dlg.getAttribute('data-edit-idx'));
+  if(!tpl){ alert('请填写搜索模板（使用 {q} 占位）'); return; }
+  if(idx >= 0 && idx < state.engines.length){
+    state.engines[idx].tpl = tpl;
+    save();
+    renderEngines();
+    dlg.classList.remove('show');
+  }
+});
+engTpl.addEventListener('keydown', (e)=> { if(e.key === 'Enter') dlgSave.click(); });
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderEngines();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setBodyScroll(false);
+});
+
+function updateClock() {
+  const clock = document.getElementById('clock');
+  const now = new Date();
+  function pad(n){ return n<10?'0'+n:n; }
+  clock.textContent =
+    now.getFullYear() + '-' +
+    pad(now.getMonth()+1) + '-' +
+    pad(now.getDate()) + ' ' +
+    pad(now.getHours()) + ':' +
+    pad(now.getMinutes()) + ':' +
+    pad(now.getSeconds());
+}
+</script>
+</body>
+</html>

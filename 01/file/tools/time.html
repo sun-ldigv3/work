@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>time</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f9f8;
+            opacity: 0;
+            animation: fadeIn 1s ease-in-out forwards;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .dark-mode {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .time-container {
+            text-align: center;
+            transform: scale(0.9);
+            animation: scaleIn 0.5s ease-out 0.3s forwards;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); }
+            to { transform: scale(1); }
+        }
+
+        .time-display {
+            font-size: 5rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            transition: opacity 0.3s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+        }
+
+        .fade-in {
+            opacity: 1;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            animation: fadeInControls 0.5s ease-out 0.6s forwards;
+        }
+
+        @keyframes fadeInControls {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .control-btn {
+            padding: 4px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            background: transparent;
+            transition: all 0.2s ease;
+        }
+
+        .dark-mode .control-btn {
+            border-color: #666;
+            color: #fff;
+        }
+
+        .control-btn:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        .dark-mode .control-btn:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button id="themeToggle" class="control-btn">color</button>
+        <button id="secondsToggle" class="control-btn">second</button>
+    </div>
+
+    <div class="time-container">
+        <div id="timeDisplay" class="time-display fade-in"></div>
+    </div>
+
+    <script>
+        let showSeconds = true;
+        let isDarkMode = false;
+
+        function updateTime() {
+            const now = new Date();
+            let timeString;
+            
+            if (showSeconds) {
+                timeString = now.toLocaleTimeString();
+            } else {
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                timeString = `${hours}:${minutes}`;
+            }
+            
+            document.getElementById('timeDisplay').textContent = timeString;
+        }
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+        }
+
+        function toggleSeconds() {
+            const timeDisplay = document.getElementById('timeDisplay');
+            timeDisplay.classList.add('fade-out');
+            
+            setTimeout(() => {
+                showSeconds = !showSeconds;
+                updateTime();
+                timeDisplay.classList.remove('fade-out');
+                timeDisplay.classList.add('fade-in');
+                
+                setTimeout(() => {
+                    timeDisplay.classList.remove('fade-in');
+                }, 300);
+            }, 300);
+        }
+
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+        document.getElementById('secondsToggle').addEventListener('click', toggleSeconds);
+
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
