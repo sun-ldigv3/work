@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sunldigv3</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .container {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            color: #333;
+            margin-bottom: 2rem;
+            animation: fadeIn 2s ease-in-out;
+        }
+        
+        .links a {
+            display: inline-block;
+            margin: 0 15px;
+            padding: 10px 20px;
+            text-decoration: none;
+            color: #555;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            animation: slideUp 1s ease forwards;
+        }
+        
+        .links a:hover {
+            background: #333;
+            color: white;
+            transform: translateY(-5px);
+        }
+        
+        .floating {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.6);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: translate(100px, -100px) rotate(180deg);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translate(0, 0) rotate(360deg);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>game</h1>
+        <div class="links">
+            <a href="3D-text-ball.html" style="animation-delay: 0.2s">3D text ball</a>
+            <a href="kards.html" style="animation-delay: 0.3s">kards</a>
+            <a href="klotski.html" style="animation-delay: 0.4s">klotski</a>
+            <a href="chess.html" style="animation-delay: 0.5s">chess</a>
+        </div>
+    </div>
+    
+    <!-- 浮动背景元素 -->
+    <div class="floating" style="top:20%; left:10%;"></div>
+    <div class="floating" style="top:70%; left:80%; animation-delay: 2s;"></div>
+    <div class="floating" style="top:40%; left:60%; animation-delay: 4s;"></div>
+    <div class="floating" style="top:80%; left:30%; animation-delay: 6s;"></div>
+</body>
+</html>
